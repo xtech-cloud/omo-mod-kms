@@ -48,18 +48,18 @@ func Test_VerifyLicence(_t *testing.T) {
 		_t.Error(err)
 	}
 
-	code, err = VerifyLicense(license, "12121", appsecret, devicecode)
-	if code != 11 {
+	_, err = VerifyLicense(license, "12121", appsecret, devicecode)
+	if nil == err {
 		_t.Error("test failed")
 	}
 
-	code, err = VerifyLicense(license, appkey, "sdd", devicecode)
-	if code != 12 {
+	_, err = VerifyLicense(license, appkey, "sdd", devicecode)
+	if nil == err {
 		_t.Error("test failed")
 	}
 
-	code, err = VerifyLicense(license, appkey, appsecret, "sadasd")
-	if code != 13 {
+	_, err = VerifyLicense(license, appkey, appsecret, "sadasd")
+	if nil == err {
 		_t.Error("test failed")
 	}
 }

@@ -50,8 +50,8 @@ func MakeLicense(_appKey string, _appSecret string, _deviceCode string, _storage
 	cer := base64Coder.EncodeToString(cer_ciphertext)
 
 	//generate payload
-	payload := fmt.Sprintf("key:\n%s\nsecret:\n%s\ncode:\n%s\ntimestamp:\n%d\nexpiry:\n%d\nstorage:\n%s\ncer:\n%s",
-		_appKey, _appSecret, _deviceCode, now, _expiry, _storage, cer)
+	payload := fmt.Sprintf("key:\n%s\ncode:\n%s\ntimestamp:\n%d\nexpiry:\n%d\nstorage:\n%s\ncer:\n%s",
+		_appKey, _deviceCode, now, _expiry, _storage, cer)
 	payload_ciphertext, err := aesEncrypt([]byte(payload), []byte(passwd))
 	payload_md5 := toMD5(payload_ciphertext)
 	sig_ciphertext, err := rsaSign([]byte(_privateKey), []byte(payload_md5))
@@ -65,29 +65,28 @@ func MakeLicense(_appKey string, _appSecret string, _deviceCode string, _storage
 
 func VerifyLicense(_license string, _appKey string, _appSecret string, _deviceCode string) (int, error) {
 	lines := strings.Split(_license, "\n")
-	if len(lines) < 16 {
+	if len(lines) < 14 {
 		return 1, errors.New("invalid license")
 	}
 
 	if "key:" != lines[0] ||
-		"secret:" != lines[2] ||
-		"code:" != lines[4] ||
-		"timestamp:" != lines[6] ||
-		"expiry:" != lines[8] ||
-		"storage:" != lines[10] ||
-		"cer:" != lines[12] ||
-		"sig:" != lines[14] {
+		"code:" != lines[2] ||
+		"timestamp:" != lines[4] ||
+		"expiry:" != lines[6] ||
+		"storage:" != lines[8] ||
+		"cer:" != lines[10] ||
+		"sig:" != lines[12] {
 		return 2, errors.New("missing some fields")
 	}
 
-	passwd := toPassword(lines[1], lines[3])
+	passwd := toPassword(_appKey, _appSecret)
 	//take payload
-	payload := fmt.Sprintf("key:\n%s\nsecret:\n%s\ncode:\n%s\ntimestamp:\n%s\nexpiry:\n%s\nstorage:\n%s\ncer:\n%s",
-		lines[1], lines[3], lines[5], lines[7], lines[9], lines[11], lines[13])
+	payload := fmt.Sprintf("key:\n%s\ncode:\n%s\ntimestamp:\n%s\nexpiry:\n%s\nstorage:\n%s\ncer:\n%s",
+		_appKey, _deviceCode, lines[5], lines[7], lines[9], lines[11])
 	payload_ciphertext, err := aesEncrypt([]byte(payload), []byte(passwd))
 	payload_md5 := toMD5(payload_ciphertext)
 	//take cer
-	cer_ciphertext, err := base64Coder.DecodeString(lines[13])
+	cer_ciphertext, err := base64Coder.DecodeString(lines[11])
 	if nil != err {
 		return 3, err
 	}
@@ -97,7 +96,7 @@ func VerifyLicense(_license string, _appKey string, _appSecret string, _deviceCo
 	}
 
 	//take sig
-	sig_ciphertext, err := base64Coder.DecodeString(lines[15])
+	sig_ciphertext, err := base64Coder.DecodeString(lines[13])
 	if nil != err {
 		return 5, err
 	}
@@ -107,24 +106,14 @@ func VerifyLicense(_license string, _appKey string, _appSecret string, _deviceCo
 		return 6, err
 	}
 
-	timestamp, err := strconv.ParseInt(lines[7], 10, 64)
+	timestamp, err := strconv.ParseInt(lines[5], 10, 64)
 	if nil != err {
 		return 7, err
 	}
 
-	expiry, err := strconv.ParseInt(lines[9], 10, 64)
+	expiry, err := strconv.ParseInt(lines[7], 10, 64)
 	if nil != err {
 		return 8, err
-	}
-
-	if _appKey != lines[1] {
-		return 11, errors.New("appname is not matched")
-	}
-	if _appSecret != lines[3] {
-		return 12, errors.New("appsecret is not matched")
-	}
-	if _deviceCode != lines[5] {
-		return 13, errors.New("devicecode is not matched")
 	}
 
 	if expiry != 0 {
