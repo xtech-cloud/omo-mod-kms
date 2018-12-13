@@ -21,10 +21,13 @@ func main() {
     devicecode := "9AFE1346C68974C634960F7F4B876271"
 
     //生成一个无自定义数据的永久授权文件
-    license0, _ := MakeLicense(appkey, appsecrect, devicecode, "", 0, pubkey, prikey)
+    license0, _ := kms.MakeLicense(appkey, appsecrect, devicecode, "", 0, pubkey, prikey)
 
     //生成一个含自定义数据的90天授权文件
-    license90, _ := MakeLicense(appkey, appsecrect, devicecode, "{\"app\":\"omo\"}", 90, pubkey, prikey)
+    license90, _ := kms.MakeLicense(appkey, appsecrect, devicecode, "{\"app\":\"omo\"}", 90, pubkey, prikey)
+
+    //验证授权文件
+    code, _ := kms.VerifyLicense(license90, appkey, appsecret, devicecode)
 }
 ```
 
@@ -55,7 +58,47 @@ pB4_s8FggA0M-9CxD7mYfQ8oQC-oLARjpZreWvgO5kJGskd-huAQxPMbArZdZ6xQ58DjwWtIeyAgrBdp
 |expiry|有效期（天）,0表示永久有效|
 |storage|数据存储，可存放自定义的数据|
 |cer|证书|
-|sig|证书的签名|
+|sig|授权文件的签名|
 
-授权文件payload部分包含key、code、timestamp、expiry、storage,以明文显示便于其他应用对授权文件做直接解析。
-将payload部分加密(AES)得到授权文件的证书部分，在文件末尾对证书进行签名(RSA)防止文件被篡改。
+# 授权文件制作流程
+
+> pubkey >> {AES->BASE64} >> cer
+> [key, code, timestamp, expiry, storage, cer] >> {merge} >> payload
+> payload >> {AES->MD5} >> identity
+> identity >> {RSA->BASE64} >> sig
+
+
+- 将pubkey进行AES加密和BASE64编码，得到cer。
+- 将API传入的 key、code、timestamp、expiry、storage和生成的cer合并为payload。
+- 将payload进行AES加密和MD5取值，得到identity。
+- 对identity进行RSA签名和BASE64编码，得到sig。
+- 将payload和sig写入授权文件。
+
+
+# 授权文件验证流程
+
+> [key, code, timestamp, expiry, storage, cer] >> {merge} >> payload
+> payload >> {AES->MD5} >> identity
+> cer >> {BASE64->AES} >> pubkey
+> [pubkey, identity, sig] >> {RSA}
+
+- 读取授权文件中的payload部分(key、code、timestamp、expiry、storage、cer)。
+- 使用payload进行AES加密和MD5取值后，得到identity。
+- 读取授权文件中的cer，BASE64解码后AES解密，得到pubkey。
+- 使用pubkey验证identity和sig是否匹配。
+
+# 授权文件验证错误值
+
+| 错误码 | 说明 |
+|:--|:--|
+|0|无错误|
+|1|无效的授权文件|
+|2|缺少字段|
+|3|证书解码错误|
+|4|证书解密错误|
+|5|签名解码错误|
+|6|签名验证错误|
+|7|时间戳解析错误|
+|8|有效期解析错误|
+|14|授权文件过期|
+

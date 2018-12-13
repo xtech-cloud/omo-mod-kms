@@ -52,9 +52,9 @@ func MakeLicense(_appKey string, _appSecret string, _deviceCode string, _storage
 	//generate payload
 	payload := fmt.Sprintf("key:\n%s\ncode:\n%s\ntimestamp:\n%d\nexpiry:\n%d\nstorage:\n%s\ncer:\n%s",
 		_appKey, _deviceCode, now, _expiry, _storage, cer)
-	payload_ciphertext, err := aesEncrypt([]byte(payload), []byte(passwd))
-	payload_md5 := toMD5(payload_ciphertext)
-	sig_ciphertext, err := rsaSign([]byte(_privateKey), []byte(payload_md5))
+	identity_ciphertext, err := aesEncrypt([]byte(payload), []byte(passwd))
+	identity := toMD5(identity_ciphertext)
+	sig_ciphertext, err := rsaSign([]byte(_privateKey), []byte(identity))
 	if nil != err {
 		return "", err
 	}
@@ -83,14 +83,14 @@ func VerifyLicense(_license string, _appKey string, _appSecret string, _deviceCo
 	//take payload
 	payload := fmt.Sprintf("key:\n%s\ncode:\n%s\ntimestamp:\n%s\nexpiry:\n%s\nstorage:\n%s\ncer:\n%s",
 		_appKey, _deviceCode, lines[5], lines[7], lines[9], lines[11])
-	payload_ciphertext, err := aesEncrypt([]byte(payload), []byte(passwd))
-	payload_md5 := toMD5(payload_ciphertext)
+	identity_ciphertext, err := aesEncrypt([]byte(payload), []byte(passwd))
+	identity := toMD5(identity_ciphertext)
 	//take cer
-	cer_ciphertext, err := base64Coder.DecodeString(lines[11])
+	pubkey_ciphertext, err := base64Coder.DecodeString(lines[11])
 	if nil != err {
 		return 3, err
 	}
-	cer, err := aesDecrypt(cer_ciphertext, []byte(passwd))
+	pubkey, err := aesDecrypt(pubkey_ciphertext, []byte(passwd))
 	if nil != err {
 		return 4, err
 	}
@@ -101,7 +101,7 @@ func VerifyLicense(_license string, _appKey string, _appSecret string, _deviceCo
 		return 5, err
 	}
 
-	err = rsaVerify(cer, []byte(payload_md5), []byte(sig_ciphertext))
+	err = rsaVerify(pubkey, []byte(identity), []byte(sig_ciphertext))
 	if nil != err {
 		return 6, err
 	}
