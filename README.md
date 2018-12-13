@@ -63,8 +63,11 @@ pB4_s8FggA0M-9CxD7mYfQ8oQC-oLARjpZreWvgO5kJGskd-huAQxPMbArZdZ6xQ58DjwWtIeyAgrBdp
 # 授权文件制作流程
 
 > pubkey >> {AES->BASE64} >> cer
+
 > [key, code, timestamp, expiry, storage, cer] >> {merge} >> payload
+
 > payload >> {AES->MD5} >> identity
+
 > identity >> {RSA->BASE64} >> sig
 
 
@@ -78,8 +81,11 @@ pB4_s8FggA0M-9CxD7mYfQ8oQC-oLARjpZreWvgO5kJGskd-huAQxPMbArZdZ6xQ58DjwWtIeyAgrBdp
 # 授权文件验证流程
 
 > [key, code, timestamp, expiry, storage, cer] >> {merge} >> payload
+
 > payload >> {AES->MD5} >> identity
+
 > cer >> {BASE64->AES} >> pubkey
+
 > [pubkey, identity, sig] >> {RSA}
 
 - 读取授权文件中的payload部分(key、code、timestamp、expiry、storage、cer)。
